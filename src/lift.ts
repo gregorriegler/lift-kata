@@ -1,15 +1,16 @@
+import FloorArrivalHandler = Lift.FloorArrivalHandler;
+
 class Lift {
     private target: number;
     private _floor: number;
     private boundary: Lift.Boundary;
+    private arrivalHandlers:FloorArrivalHandler[] = [];
 
-    constructor(lowerBound?: number, upperBound?: number) {
-        this.boundary = new Lift.Boundary(
-            lowerBound !== undefined ? lowerBound : -1,
-            upperBound !== undefined ? upperBound : 3
-        )
+    constructor(lowerBound: number, upperBound: number, ...handlers: FloorArrivalHandler[]) {
+        this.boundary = new Lift.Boundary(lowerBound, upperBound)
         this.target = 0;
         this._floor = 0;
+        handlers.forEach(handler => this.arrivalHandlers.push(handler))
     }
 
     floor() {
@@ -28,6 +29,20 @@ class Lift {
     }
 
     private _tick() {
+        this.move();
+
+        this.notifyForArrival();
+    }
+
+    private notifyForArrival() {
+        if (this.target !== this._floor) return;
+
+        for (const handler of this.arrivalHandlers) {
+            handler.arrivedAt(this._floor)
+        }
+    }
+
+    private move() {
         if (this.target > this._floor) {
             this._floor++;
         } else if (this.target < this._floor) {
@@ -37,6 +52,11 @@ class Lift {
 }
 
 namespace Lift {
+
+    export interface FloorArrivalHandler {
+        arrivedAt(floor: number): void
+    }
+
     export class Boundary {
         private readonly lowerBound: number;
         private readonly upperBound: number;
@@ -46,15 +66,17 @@ namespace Lift {
             this.upperBound = upperBound;
         }
 
-        public assertInBounds(target: number) {
-            if (this.isOutOfBounds(target)) throw new Lift.Boundary.TargetOutOfBoundsError
+        assertInBounds(target: number) {
+            if (this.isOutOfBounds(target)) throw new Lift.TargetOutOfBoundsError
         }
 
         public isOutOfBounds(target: number) {
             return target < this.lowerBound || target > this.upperBound;
         }
 
-        static TargetOutOfBoundsError = class extends Error {}
+    }
+
+    export class TargetOutOfBoundsError extends Error {
     }
 }
 
