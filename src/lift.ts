@@ -1,14 +1,14 @@
 import FloorArrivalHandler = Lift.FloorArrivalHandler;
 
 class Lift {
-    private target: number;
+    private target: number[];
     private _floor: number;
     private boundary: Lift.Boundary;
     private arrivalHandlers:FloorArrivalHandler[] = [];
 
     constructor(lowerBound: number, upperBound: number, ...handlers: FloorArrivalHandler[]) {
         this.boundary = new Lift.Boundary(lowerBound, upperBound)
-        this.target = 0;
+        this.target = [];
         this._floor = 0;
         handlers.forEach(handler => this.arrivalHandlers.push(handler))
     }
@@ -19,7 +19,7 @@ class Lift {
 
     registerTarget(target: number) {
         this.boundary.assertInBounds(target)
-        this.target = target
+        this.target.push(target)
     }
 
     tick(times?: number) {
@@ -30,24 +30,32 @@ class Lift {
 
     private _tick() {
         this.move();
-
-        this.notifyForArrival();
+        this.handleArrival();
     }
 
-    private notifyForArrival() {
-        if (this.target !== this._floor) return;
+    private handleArrival() {
+        if (this.currentTarget() !== this._floor) return;
 
+        this.removeCurrentTarget()
         for (const handler of this.arrivalHandlers) {
             handler.arrivedAt(this._floor)
         }
     }
 
     private move() {
-        if (this.target > this._floor) {
+        if (this.currentTarget() > this._floor) {
             this._floor++;
-        } else if (this.target < this._floor) {
+        } else if (this.currentTarget() < this._floor) {
             this._floor--;
         }
+    }
+
+    private currentTarget() {
+        return this.target[0];
+    }
+
+    private removeCurrentTarget() {
+        this.target.shift()
     }
 }
 

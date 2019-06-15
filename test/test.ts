@@ -3,12 +3,22 @@ import {expect} from "chai";
 import FloorArrivalHandler = Lift.FloorArrivalHandler;
 
 describe('Lift', function () {
-    let lift:Lift;
-    let fakeArrivalHandler:FakeArrivalHandler;
+    let lift: Lift;
+    let fakeArrivalHandler: FakeArrivalHandler;
 
     beforeEach(function () {
         fakeArrivalHandler = new FakeArrivalHandler();
         lift = new Lift(-1, 3, fakeArrivalHandler)
+    });
+
+    it('is limited to shafts upper boundary', function () {
+        expect(() => lift.registerTarget(4))
+            .to.throw(Lift.TargetOutOfBoundsError)
+    });
+
+    it('is limited to shafts lower boundary', function () {
+        expect(() => lift.registerTarget(-2))
+            .to.throw(Lift.TargetOutOfBoundsError)
     });
 
     it('starts at 0', function () {
@@ -47,17 +57,7 @@ describe('Lift', function () {
         expect(lift.floor()).to.equal(2);
     });
 
-    it('is limited to shafts upper boundary', function () {
-        expect(() => lift.registerTarget(4))
-            .to.throw(Lift.TargetOutOfBoundsError)
-    });
-
-    it('is limited to shafts lower boundary', function () {
-        expect(() => lift.registerTarget(-2))
-            .to.throw(Lift.TargetOutOfBoundsError)
-    });
-
-    it('notifies on arrival on target floor', function () {
+    it('notifies for arrival on target floor', function () {
         lift.registerTarget(2);
 
         lift.tick(2);
@@ -73,8 +73,17 @@ describe('Lift', function () {
         expect(fakeArrivalHandler.arrivals).to.be.empty
     });
 
+    it('can register 2 targets', function () {
+        lift.registerTarget(1);
+        lift.registerTarget(3);
+
+        lift.tick(3);
+
+        expect(fakeArrivalHandler.arrivals).to.have.members([1, 3])
+    });
+
     class FakeArrivalHandler implements FloorArrivalHandler {
-        public arrivals:number[] = [];
+        public arrivals: number[] = [];
 
         arrivedAt(floor: number): void {
             this.arrivals.push(floor);
