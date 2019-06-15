@@ -1,7 +1,6 @@
 import {Lift} from "../src/lift";
 import {expect} from "chai";
 import FloorArrivalHandler = Lift.FloorArrivalHandler;
-import {timingSafeEqual} from "crypto";
 
 describe('Lift', function () {
     let lift: Lift;
@@ -138,28 +137,17 @@ describe('Lift', function () {
         expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 3])
     })
 
-    it('crazy calls', function () {
-        lift.call(2, Lift.Direction.Down)
-        lift.call(-1, Lift.Direction.Up)
-        lift.tick(2)
-        lift.goto(1)
-        lift.tick(10)
+    it('first come first serve', function () {
+        lift.call(2, Lift.Direction.Up)
+        lift.goto(-1)
 
-        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 1, -1])
+        lift.tick(6)
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, -1])
         expect(lift.floor()).to.equal(-1);
     })
 
-    it('gotos come first', function () {
-        lift.call(2, Lift.Direction.Up)
-
-        lift.goto(-1)
-        lift.tick(4)
-
-        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([-1, 2])
-        expect(lift.floor()).to.equal(2);
-    })
-
-    it('gotos come first #2', function () {
+    it('respects gotos to come first', function () {
         lift.call(2, Lift.Direction.Up)
         lift.call(-1, Lift.Direction.Up)
         lift.tick(2)
@@ -167,6 +155,17 @@ describe('Lift', function () {
         lift.tick(10)
 
         expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 3, -1])
+        expect(lift.floor()).to.equal(-1);
+    })
+
+    it('can handle crazy calls', function () {
+        lift.call(2, Lift.Direction.Down)
+        lift.call(-1, Lift.Direction.Up)
+        lift.tick(2)
+        lift.goto(1)
+        lift.tick(10)
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 1, -1])
         expect(lift.floor()).to.equal(-1);
     })
 

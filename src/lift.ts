@@ -2,7 +2,8 @@ import FloorArrivalHandler = Lift.FloorArrivalHandler;
 
 class Lift {
     private readonly boundary: Lift.Boundary;
-    private readonly targets: number[] = [];
+    private readonly gotos: number[] = [];
+    private readonly calls: number[] = [];
     private _floor: number = 0;
     private arrivalHandlers: FloorArrivalHandler[] = [];
 
@@ -11,54 +12,55 @@ class Lift {
         handlers.forEach(handler => this.arrivalHandlers.push(handler))
     }
 
-    floor() {
-        return this._floor
-    }
-
-    goto(floor: number) {
-        this.registerTarget(floor, this.currentDirection());
-    }
-
-    call(floor: number, direction: Lift.Direction) {
-        this.registerTarget(floor, direction);
-    }
-
-    private registerTarget(floor: number, direction: Lift.Direction) {
-        this.boundary.assertWithinBounds(floor)
-
-        if (this.isOnMyWay(floor, direction)) {
-            this.intermediateTarget(floor)
-        } else {
-            this.targets.push(floor)
-        }
-    }
-
     tick(times?: number) {
         if (times === undefined) times = 1
         for (let i = 0; i < times; i++)
             this._tick()
     }
 
+    floor() {
+        return this._floor
+    }
+
+    goto(floor: number) {
+        this.addTarget(floor, this.currentDirection())
+    }
+
+    call(floor: number, direction: Lift.Direction) {
+        this.addTarget(floor, direction, this.calls);
+    }
+
+    private addTarget(floor: number, direction: Lift.Direction, targets = this.gotos) {
+        this.boundary.assertWithinBounds(floor)
+
+        if (this.isOnMyWay(floor, direction)) {
+            this.addIntermediateGoto(floor)
+        } else {
+            targets.push(floor)
+        }
+    }
+
     private isOnMyWay(floor: number, direction: Lift.Direction) {
-        return this.isCurrentDirection(direction) &&
-            (
-                direction === Lift.Direction.Up && floor >= this._floor ||
-                direction === Lift.Direction.Down && floor <= this._floor
-            )
+        return (
+            direction === Lift.Direction.Up && floor >= this._floor ||
+            direction === Lift.Direction.Down && floor <= this._floor
+        )
+    }
+
+    private addIntermediateGoto(floor: number) {
+        let index = 0;
+        while (index < this.gotos.length) {
+            if (this.goingUp() && this.gotos[index] > floor ||
+                this.goingDown() && this.gotos[index] < floor) break
+            index++
+        }
+
+        this.gotos.splice(index, 0, floor)
     }
 
     private _tick() {
         this.move();
         this.handleArrival();
-    }
-
-    private handleArrival() {
-        if (this.currentTarget() !== this._floor) return;
-
-        this.removeCurrentTarget()
-        for (const handler of this.arrivalHandlers) {
-            handler.arrivedAt(this._floor)
-        }
     }
 
     private move() {
@@ -69,6 +71,32 @@ class Lift {
         }
     }
 
+    private handleArrival() {
+        if (this.currentTarget() !== this._floor) return;
+
+        this.removeCurrentTarget()
+
+        for (const handler of this.arrivalHandlers) {
+            handler.arrivedAt(this._floor)
+        }
+    }
+
+    private currentTarget(): number {
+        if (this.gotos.length > 0) {
+            return this.gotos[0];
+        } else {
+            return this.calls[0];
+        }
+    }
+
+    private removeCurrentTarget() {
+        if (this.gotos[0] === this._floor)
+            this.gotos.shift()
+
+        if (this.calls[0] === this._floor)
+            this.calls.shift()
+    }
+
     private goingUp() {
         return this.currentTarget() > this._floor;
     }
@@ -77,35 +105,12 @@ class Lift {
         return this.currentTarget() < this._floor;
     }
 
-    private currentTarget() {
-        return this.targets[0];
-    }
-
-    private removeCurrentTarget() {
-        this.targets.shift()
-    }
-
-    private isCurrentDirection(direction: Lift.Direction) {
-        return direction === this.currentDirection();
-    }
-
     private currentDirection(): Lift.Direction {
-        if (this._floor < this.currentTarget()) {
+        if (this.goingUp()) {
             return Lift.Direction.Up
         } else {
             return Lift.Direction.Down
         }
-    }
-
-    private intermediateTarget(floor: number) {
-        let index = 0;
-        while (index < this.targets.length) {
-            if (this.goingUp() && this.targets[index] > floor ||
-                this.goingDown() && this.targets[index] < floor) break
-            index++
-        }
-
-        this.targets.splice(index, 0, floor)
     }
 }
 
