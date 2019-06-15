@@ -4,7 +4,7 @@ class Lift {
     private readonly boundary: Lift.Boundary;
     private readonly targets: number[] = [];
     private _floor: number = 0;
-    private arrivalHandlers:FloorArrivalHandler[] = [];
+    private arrivalHandlers: FloorArrivalHandler[] = [];
 
     constructor(lowerBound: number, upperBound: number, ...handlers: FloorArrivalHandler[]) {
         this.boundary = new Lift.Boundary(lowerBound, upperBound)
@@ -15,15 +15,36 @@ class Lift {
         return this._floor
     }
 
-    registerTarget(target: number) {
-        this.boundary.assertInBounds(target)
-        this.targets.push(target)
+    goto(floor: number) {
+        this.registerTarget(floor, this.currentDirection());
+    }
+
+    call(floor: number, direction: Lift.Direction) {
+        this.registerTarget(floor, direction);
+    }
+
+    private registerTarget(floor: number, direction: Lift.Direction) {
+        this.boundary.assertWithinBounds(floor)
+
+        if (this.isOnMyWay(floor, direction)) {
+            this.intermediateTarget(floor)
+        } else {
+            this.targets.push(floor)
+        }
     }
 
     tick(times?: number) {
         if (times === undefined) times = 1
         for (let i = 0; i < times; i++)
             this._tick()
+    }
+
+    private isOnMyWay(floor: number, direction: Lift.Direction) {
+        return this.isCurrentDirection(direction) &&
+            (
+                direction === Lift.Direction.Up && floor >= this._floor ||
+                direction === Lift.Direction.Down && floor <= this._floor
+            )
     }
 
     private _tick() {
@@ -41,11 +62,19 @@ class Lift {
     }
 
     private move() {
-        if (this.currentTarget() > this._floor) {
+        if (this.goingUp()) {
             this._floor++;
-        } else if (this.currentTarget() < this._floor) {
+        } else if (this.goingDown()) {
             this._floor--;
         }
+    }
+
+    private goingUp() {
+        return this.currentTarget() > this._floor;
+    }
+
+    private goingDown() {
+        return this.currentTarget() < this._floor;
     }
 
     private currentTarget() {
@@ -55,9 +84,36 @@ class Lift {
     private removeCurrentTarget() {
         this.targets.shift()
     }
+
+    private isCurrentDirection(direction: Lift.Direction) {
+        return direction === this.currentDirection();
+    }
+
+    private currentDirection(): Lift.Direction {
+        if (this._floor < this.currentTarget()) {
+            return Lift.Direction.Up
+        } else {
+            return Lift.Direction.Down
+        }
+    }
+
+    private intermediateTarget(floor: number) {
+        let index = 0;
+        while (index < this.targets.length) {
+            if (this.goingUp() && this.targets[index] > floor ||
+                this.goingDown() && this.targets[index] < floor) break
+            index++
+        }
+
+        this.targets.splice(index, 0, floor)
+    }
 }
 
 namespace Lift {
+
+    export enum Direction {
+        Up, Down
+    }
 
     export interface FloorArrivalHandler {
         arrivedAt(floor: number): void
@@ -72,7 +128,7 @@ namespace Lift {
             this.upperBound = upperBound;
         }
 
-        assertInBounds(target: number) {
+        assertWithinBounds(target: number) {
             if (this.isOutOfBounds(target)) throw new Lift.TargetOutOfBoundsError
         }
 

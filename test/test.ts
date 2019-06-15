@@ -1,6 +1,7 @@
 import {Lift} from "../src/lift";
 import {expect} from "chai";
 import FloorArrivalHandler = Lift.FloorArrivalHandler;
+import {timingSafeEqual} from "crypto";
 
 describe('Lift', function () {
     let lift: Lift;
@@ -12,12 +13,12 @@ describe('Lift', function () {
     });
 
     it('is limited to shafts upper boundary', function () {
-        expect(() => lift.registerTarget(4))
+        expect(() => lift.goto(4))
             .to.throw(Lift.TargetOutOfBoundsError)
     });
 
     it('is limited to shafts lower boundary', function () {
-        expect(() => lift.registerTarget(-2))
+        expect(() => lift.goto(-2))
             .to.throw(Lift.TargetOutOfBoundsError)
     });
 
@@ -33,7 +34,7 @@ describe('Lift', function () {
 
 
     it('can go up a floor', function () {
-        lift.registerTarget(1);
+        lift.goto(1);
 
         lift.tick();
 
@@ -41,7 +42,7 @@ describe('Lift', function () {
     });
 
     it('can go down a floor', function () {
-        lift.registerTarget(-1);
+        lift.goto(-1);
 
         lift.tick();
 
@@ -49,7 +50,7 @@ describe('Lift', function () {
     });
 
     it('goes one floor per tick', function () {
-        lift.registerTarget(2);
+        lift.goto(2);
 
         lift.tick();
 
@@ -57,7 +58,7 @@ describe('Lift', function () {
     });
 
     it('stops at target', function () {
-        lift.registerTarget(2);
+        lift.goto(2);
 
         lift.tick(3);
 
@@ -65,7 +66,7 @@ describe('Lift', function () {
     });
 
     it('notifies for arrival on target floor', function () {
-        lift.registerTarget(2);
+        lift.goto(2);
 
         lift.tick(2);
 
@@ -73,30 +74,101 @@ describe('Lift', function () {
     });
 
     it('doesnt notify while driving', function () {
-        lift.registerTarget(2);
+        lift.goto(2);
 
         lift.tick(1);
 
         expect(fakeArrivalHandler.arrivals).to.be.empty
     });
 
-    it('can register 2 targets', function () {
-        lift.registerTarget(1);
-        lift.registerTarget(3);
+    it('stops for intermediate gotos on the way up', function () {
+        lift.goto(3);
 
+        lift.goto(1);
         lift.tick(3);
 
-        expect(fakeArrivalHandler.arrivals).to.have.members([1, 3])
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([1, 3])
     });
 
-    it('can register targets in opposite directions', function () {
-        lift.registerTarget(2);
-        lift.registerTarget(-1);
+    it('stops for intermediate gotos on the way down', function () {
+        lift.goto(3);
+        lift.tick(3)
+        lift.goto(-1);
+
+        lift.goto(0);
+        lift.tick(4);
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([3, 0, -1])
+    });
+
+    it('stops on all intermediate gotos on the way up', function () {
+        lift.goto(3);
+        lift.goto(1);
+        lift.goto(2);
+        lift.tick(3);
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([1, 2, 3])
+    });
+
+    it('when gotos are in opposite directions the first comes first serves', function () {
+        lift.goto(2);
+        lift.goto(-1);
 
         lift.tick(5);
 
-        expect(fakeArrivalHandler.arrivals).to.have.members([2, -1])
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, -1])
     });
+
+    it('can be called', function () {
+        lift.call(2, Lift.Direction.Up)
+
+        lift.tick(2)
+
+        expect(lift.floor()).to.equal(2);
+    })
+
+    it('will stop on its way, when called within its path', function () {
+        lift.goto(3)
+
+        lift.tick()
+        lift.call(2, Lift.Direction.Up)
+        lift.tick(2)
+
+        expect(lift.floor()).to.equal(3);
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 3])
+    })
+
+    it('crazy calls', function () {
+        lift.call(2, Lift.Direction.Down)
+        lift.call(-1, Lift.Direction.Up)
+        lift.tick(2)
+        lift.goto(1)
+        lift.tick(10)
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 1, -1])
+        expect(lift.floor()).to.equal(-1);
+    })
+
+    it('gotos come first', function () {
+        lift.call(2, Lift.Direction.Up)
+
+        lift.goto(-1)
+        lift.tick(4)
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([-1, 2])
+        expect(lift.floor()).to.equal(2);
+    })
+
+    it('gotos come first #2', function () {
+        lift.call(2, Lift.Direction.Up)
+        lift.call(-1, Lift.Direction.Up)
+        lift.tick(2)
+        lift.goto(3)
+        lift.tick(10)
+
+        expect(fakeArrivalHandler.arrivals).to.have.ordered.members([2, 3, -1])
+        expect(lift.floor()).to.equal(-1);
+    })
 
     class FakeArrivalHandler implements FloorArrivalHandler {
         public arrivals: number[] = [];
