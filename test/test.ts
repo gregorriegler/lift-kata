@@ -25,6 +25,13 @@ describe('Lift', function () {
         expect(lift.floor()).to.equal(0);
     });
 
+    it('idles', function () {
+        lift.tick(3)
+
+        expect(lift.floor()).to.equal(0);
+    });
+
+
     it('can go up a floor', function () {
         lift.registerTarget(1);
 
@@ -82,13 +89,21 @@ describe('Lift', function () {
         expect(fakeArrivalHandler.arrivals).to.have.members([1, 3])
     });
 
+    it('can register targets in opposite directions', function () {
+        lift.registerTarget(2);
+        lift.registerTarget(-1);
+
+        lift.tick(5);
+
+        expect(fakeArrivalHandler.arrivals).to.have.members([2, -1])
+    });
+
     class FakeArrivalHandler implements FloorArrivalHandler {
         public arrivals: number[] = [];
 
         arrivedAt(floor: number): void {
             this.arrivals.push(floor);
         }
-
     }
 
 });

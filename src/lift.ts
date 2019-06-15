@@ -1,15 +1,13 @@
 import FloorArrivalHandler = Lift.FloorArrivalHandler;
 
 class Lift {
-    private target: number[];
-    private _floor: number;
-    private boundary: Lift.Boundary;
+    private readonly boundary: Lift.Boundary;
+    private readonly targets: number[] = [];
+    private _floor: number = 0;
     private arrivalHandlers:FloorArrivalHandler[] = [];
 
     constructor(lowerBound: number, upperBound: number, ...handlers: FloorArrivalHandler[]) {
         this.boundary = new Lift.Boundary(lowerBound, upperBound)
-        this.target = [];
-        this._floor = 0;
         handlers.forEach(handler => this.arrivalHandlers.push(handler))
     }
 
@@ -19,7 +17,7 @@ class Lift {
 
     registerTarget(target: number) {
         this.boundary.assertInBounds(target)
-        this.target.push(target)
+        this.targets.push(target)
     }
 
     tick(times?: number) {
@@ -51,11 +49,11 @@ class Lift {
     }
 
     private currentTarget() {
-        return this.target[0];
+        return this.targets[0];
     }
 
     private removeCurrentTarget() {
-        this.target.shift()
+        this.targets.shift()
     }
 }
 
